@@ -13,11 +13,7 @@ export class EditorStore {
   documents: MapStore<EditorDocuments> = import.meta.hot?.data.documents ?? map({});
 
   currentDocument = computed([this.documents, this.selectedFile], (documents, selectedFile) => {
-    if (!selectedFile) {
-      return undefined;
-    }
-
-    return documents[selectedFile];
+    return selectedFile ? documents[selectedFile] : undefined;
   });
 
   constructor(filesStore: FilesStore) {
@@ -36,11 +32,9 @@ export class EditorStore {
       Object.fromEntries<EditorDocument>(
         Object.entries(files)
           .map(([filePath, dirent]) => {
-            if (dirent === undefined || dirent.type === 'folder') {
-              return undefined;
-            }
+            if (!dirent || dirent.type === 'folder' || !dirent.content) return undefined;
 
-            const previousDocument = previousDocuments?.[filePath];
+            const previousDocument = previousDocuments[filePath];
 
             return [
               filePath,
@@ -64,28 +58,19 @@ export class EditorStore {
     const documents = this.documents.get();
     const documentState = documents[filePath];
 
-    if (!documentState) {
-      return;
+    if (documentState) {
+      this.documents.setKey(filePath, {
+        ...documentState,
+        scroll: position,
+      });
     }
-
-    this.documents.setKey(filePath, {
-      ...documentState,
-      scroll: position,
-    });
   }
 
   updateFile(filePath: string, newContent: string) {
     const documents = this.documents.get();
     const documentState = documents[filePath];
 
-    if (!documentState) {
-      return;
-    }
-
-    const currentContent = documentState.value;
-    const contentChanged = currentContent !== newContent;
-
-    if (contentChanged) {
+    if (documentState && documentState.value !== newContent) {
       this.documents.setKey(filePath, {
         ...documentState,
         value: newContent,
